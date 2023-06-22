@@ -6,7 +6,8 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use tower_http::cors::{Any, CorsLayer};
 use http::Method;
-use urlencoding::encode;
+mod datastruct;
+use datastruct::*;
 
 const URL:&str = "https://maps.googleapis.com/maps/api/directions/json";
 const KEY:&str =  "AIzaSyAIf-vJKm6y4vhqsCFdMkuRYIOjb8Q8rxM";
@@ -89,72 +90,4 @@ async fn get_route_values(url: String) -> Result<Route_data, Box<dyn std::error:
         test: 69
     };
     Ok(test)
-}
-// the input to our `create_user` handler
-#[derive(Deserialize)]
-struct CreateUser {
-    username: String,
-}
-
-
-struct Route_data {
-    test: usize
-}
-
-#[derive(Deserialize)]
-struct Waypoints {
-    route: Vec<String>,
-}
-
-#[derive(Serialize)]
-struct Route {
-   Addr : String,
-}
-
-#[derive(Serialize)]
-struct User {
-    id: u64,
-    username: String,
-}
-
-#[derive(Deserialize, Debug)]
-struct leg_distance {
-    text: String,
-    value: usize 
-}
-
-#[derive(Deserialize)]
-struct leg_duration {
-    text: String,
-    value: usize
-}
-
-#[derive(Deserialize)]
-struct location {
-    lat: usize,
-    lng: usize
-}
-
-#[derive(Deserialize)]
-struct leg_step {
-    distance: leg_distance,
-    duration: leg_duration,
-    //end_location: location 
-}
-
-#[derive(Deserialize)]
-struct Legs {
-    distance: leg_distance,
-    duration: leg_duration,
-    steps: Vec<leg_step>
-}
-
-#[derive(Deserialize)]
-struct RouteOption {
-    legs: Vec<Legs>
-}
-
-#[derive(Deserialize)]
-struct Google_Response {
-    routes: Vec<RouteOption>
 }

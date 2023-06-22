@@ -1,35 +1,31 @@
 use axum::{
     http::StatusCode,
-    response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
-use tower_http::{trace::TraceLayer};
-use tower::ServiceBuilder;
 use tower_http::cors::{Any, CorsLayer};
-use http::{Request, Response, Method, header};
+use http::Method;
+use urlencoding::encode;
+
+const URL:&str = "https://maps.googleapis.com/maps/api/directions/json";
+const KEY:&str =  "AIzaSyAIf-vJKm6y4vhqsCFdMkuRYIOjb8Q8rxM";
+
 #[tokio::main]
 async fn main() {
-    // initialize tracing
     tracing_subscriber::fmt::init();
 
     let cors = CorsLayer::new()
-        // allow `GET` and `POST` when accessing the resource
         .allow_methods([Method::GET, Method::POST])
-        // allow requests from any origin
         .allow_origin(Any)
         .allow_headers(Any);
-    // build our application with a route
+
     let app = Router::new()
-        // `GET /` goes to `root`
         .route("/", get(root))
-        // `POST /users` goes to `create_user`
         .route("/users", post(create_user))
         .route("/api/route", post(route))
         .layer(cors);
 
-    // run our app with hyper, listening globally on port 3000
     axum::Server::bind(&"0.0.0.0:3100".parse().unwrap())
         .serve(app.into_make_service())
         .await
@@ -57,13 +53,28 @@ async fn create_user(
 }
 
 async fn route(Json(payload): Json<Waypoints>,) -> (StatusCode, Json<Route>) {
-    let first = &payload.route[0];
-
-    println!("id: {}, location: {}",first.id, first.location);
+    let mut main_url = String::from(URL);
+    main_url.push_str("?destination=place_id:");
+    main_url.push_str(&payload.route.last().unwrap());
+    main_url.push_str("&origin=place_id:");
+    main_url.push_str(&payload.route.get(0).unwrap());
+    
+    let way_len = payload.route.len() - 1;
+    if way_len > 1 {
+        main_url.push_str("&waypoints=");
+        for i in 1..way_len {
+            main_url.push_str("place_id:");
+            main_url.push_str(&payload.route.get(i).unwrap());
+            if i != way_len {
+                main_url.push_str("%7C");
+            }
+        }
+    }
+    main_url.push_str("&key=");
+    main_url.push_str(&KEY);
     let route = Route {
-        firstWaypoint: String::from(&first.location)
+        Addr: main_url
     };
-
     (StatusCode::CREATED, Json(route))
 }
 // the input to our `create_user` handler
@@ -72,22 +83,17 @@ struct CreateUser {
     username: String,
 }
 
-#[derive(Deserialize)]
-struct Waypoint {
-    id: usize,
-    location: String
-}
 
 #[derive(Deserialize)]
 struct Waypoints {
-    route: Vec<Waypoint>,
+    route: Vec<String>,
 }
 
 #[derive(Serialize)]
 struct Route {
-    firstWaypoint: String,
+   Addr : String,
 }
-// the output to our `create_user` handler
+
 #[derive(Serialize)]
 struct User {
     id: u64,

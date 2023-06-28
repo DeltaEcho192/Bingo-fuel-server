@@ -6,11 +6,6 @@ pub struct CreateUser {
     pub username: String,
 }
 
-
-pub struct Route_data {
-    pub test: usize
-}
-
 #[derive(Deserialize)]
 pub struct Waypoints {
     pub route: Vec<String>,
@@ -28,35 +23,37 @@ pub struct User {
 }
 
 #[derive(Deserialize, Debug)]
-pub struct leg_distance {
+pub struct LegDistance {
     pub text: String,
+    //Unit used is meter
     pub value: usize 
 }
 
 #[derive(Deserialize)]
-pub struct leg_duration {
+pub struct LegDuration {
     pub text: String,
+    //Unit used is Seconds
     pub value: usize
 }
 
 #[derive(Deserialize)]
-pub struct location {
+pub struct Location {
     pub lat: usize,
     pub lng: usize
 }
 
 #[derive(Deserialize)]
-pub struct leg_step {
-    pub distance: leg_distance,
-    pub duration: leg_duration,
-    //end_location: location 
+pub struct LegStep {
+    pub distance: LegDistance,
+    pub duration: LegDuration,
+    //end_location: Location 
 }
 
 #[derive(Deserialize)]
 pub struct Legs {
-    pub distance: leg_distance,
-    pub duration: leg_duration,
-    pub steps: Vec<leg_step>
+    pub distance: LegDistance,
+    pub duration: LegDuration,
+    pub steps: Vec<LegStep>
 }
 
 #[derive(Deserialize)]
@@ -65,7 +62,23 @@ pub struct RouteOption {
 }
 
 #[derive(Deserialize)]
-pub struct Google_Response {
+pub struct GoogleResponse {
     pub routes: Vec<RouteOption>
 }
 
+#[derive(Serialize)]
+pub struct DataResponse {
+    pub data: Vec<DataDisplay>
+}
+
+impl DataResponse {
+    pub fn new() -> DataResponse {
+        DataResponse { data: Vec::new() }
+    }
+}
+
+#[derive(Serialize)]
+pub struct DataDisplay {
+    pub id: String,
+    pub value: String
+}

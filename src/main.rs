@@ -8,6 +8,7 @@ use tower_http::cors::{Any, CorsLayer};
 use http::Method;
 mod datastruct;
 use datastruct::*;
+use compound_duration::format_dhms;
 
 const URL:&str = "https://maps.googleapis.com/maps/api/directions/json";
 const KEY:&str =  "AIzaSyAIf-vJKm6y4vhqsCFdMkuRYIOjb8Q8rxM";
@@ -74,20 +75,36 @@ async fn route(Json(payload): Json<Waypoints>,) -> (StatusCode, Json<Route>) {
     main_url.push_str("&key=");
     main_url.push_str(&KEY);
 
-
-    let test:Route_data = get_route_values(main_url).await.unwrap();
+    println!("{:?}", main_url);
+    let route_data:GoogleResponse = get_route_values(main_url).await.unwrap();
+    calc_data(&route_data);
     let route = Route {
         Addr: String::from("Test")
     };
     (StatusCode::CREATED, Json(route))
 }
 
-async fn get_route_values(url: String) -> Result<Route_data, Box<dyn std::error::Error>> {
+async fn get_route_values(url: String) -> Result<GoogleResponse, Box<dyn std::error::Error>> {
     let client = reqwest::Client::new();
-    let body:Google_Response = client.get(url).send().await?.json::<Google_Response>().await?;
+    let body:GoogleResponse = client.get(url).send().await?.json::<GoogleResponse>().await?;
     println!("{:?}", body.routes.get(0).unwrap().legs.get(0).unwrap().distance);
-    let test = Route_data {
-        test: 69
-    };
-    Ok(test)
+    Ok(body)
+}
+
+fn calc_data(data:&GoogleResponse) -> DataResponse {
+    let mut response:DataResponse = DataResponse::new(); 
+    let legs:&Vec<Legs> = &data.routes.get(0).unwrap().legs;
+    let total_time:usize = legs.into_iter().fold(0, |acc, b| acc + b.duration.value);
+    let total_distance_m:usize = legs.into_iter().fold(0, |acc, b| acc + b.distance.value);
+    let total_dist_km:f64 = total_distance_m as f64 / 1000f64;
+    println!("total Time {:?}", format_dhms(total_time));
+   /* 
+    for leg in &legs {
+        total_time += leg.duration.value;
+        total_distance += leg.distance.value;
+    }*/
+    response.data.push(DataDisplay {id: String::from("Time"), value: format_dhms(total_time)});
+    response.data.push(DataDisplay {id: String::from("Distance"), value: total_dist_km.to_string()});
+
+    response
 }

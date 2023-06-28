@@ -79,6 +79,7 @@ name = "bingo-fuel-server"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "compound_duration",
  "http",
  "reqwest",
  "serde",
@@ -88,7 +89,6 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
- "urlencoding",
 ]
 
 [[package]]
@@ -120,6 +120,12 @@ name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
+name = "compound_duration"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "391da30e746a798f948778dff8d2e58a47b33bc6e2f37156ef8480d3b49a6565"
 
 [[package]]
 name = "core-foundation"
@@ -1166,12 +1172,6 @@ dependencies = [
  "idna",
  "percent-encoding",
 ]
-
-[[package]]
-name = "urlencoding"
-version = "2.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8db7427f936968176eaa7cdf81b7f98b980b18495ec28f1b5791ac3bfe3eea9"
 
 [[package]]
 name = "valuable"

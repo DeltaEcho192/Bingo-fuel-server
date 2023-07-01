@@ -11,6 +11,7 @@ use datastruct::*;
 use compound_duration::format_dhms;
 
 const URL:&str = "https://maps.googleapis.com/maps/api/directions/json";
+const EMBED_URL:&str = "https://www.google.com/maps/embed/v1/directions";
 const KEY:&str =  "AIzaSyAIf-vJKm6y4vhqsCFdMkuRYIOjb8Q8rxM";
 
 #[tokio::main]
@@ -55,7 +56,23 @@ async fn create_user(
 }
 
 async fn route(Json(payload): Json<Waypoints>,) -> (StatusCode, Json<DataResponse>) {
-    let mut main_url = String::from(URL);
+    let main_url = url_generator(&payload, true);
+    let embed_url = url_generator(&payload, false);
+    println!("{:?}", main_url);
+    println!("EMBEDD: {:?}", embed_url);
+    let route_data:GoogleResponse = get_route_values(main_url).await.unwrap();
+    let mut user_data:DataResponse = calc_data(&route_data);
+    user_data.embed_url = embed_url;
+    (StatusCode::CREATED, Json(user_data))
+}
+
+fn url_generator(payload: &Waypoints, selector:bool) -> String {
+    let mut main_url;
+    if selector == true {
+        main_url = String::from(URL);
+    } else {
+        main_url = String::from(EMBED_URL);
+    }
     main_url.push_str("?destination=place_id:");
     main_url.push_str(&payload.route.last().unwrap());
     main_url.push_str("&origin=place_id:");
@@ -67,18 +84,14 @@ async fn route(Json(payload): Json<Waypoints>,) -> (StatusCode, Json<DataRespons
         for i in 1..way_len {
             main_url.push_str("place_id:");
             main_url.push_str(&payload.route.get(i).unwrap());
-            if i != way_len {
+            if i != (way_len - 1) {
                 main_url.push_str("%7C");
             }
         }
     }
     main_url.push_str("&key=");
     main_url.push_str(&KEY);
-
-    println!("{:?}", main_url);
-    let route_data:GoogleResponse = get_route_values(main_url).await.unwrap();
-    let user_data:DataResponse = calc_data(&route_data);
-    (StatusCode::CREATED, Json(user_data))
+    main_url
 }
 
 async fn get_route_values(url: String) -> Result<GoogleResponse, Box<dyn std::error::Error>> {

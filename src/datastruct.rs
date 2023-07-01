@@ -63,12 +63,13 @@ pub struct GoogleResponse {
 
 #[derive(Serialize)]
 pub struct DataResponse {
-    pub data: Vec<DataDisplay>
+    pub data: Vec<DataDisplay>,
+    pub embed_url: String
 }
 
 impl DataResponse {
     pub fn new() -> DataResponse {
-        DataResponse { data: Vec::new() }
+        DataResponse { data: Vec::new() , embed_url: String::from("")}
     }
 }
 

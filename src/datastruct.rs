@@ -12,11 +12,6 @@ pub struct Waypoints {
 }
 
 #[derive(Serialize)]
-pub struct Route {
-   pub Addr : String,
-}
-
-#[derive(Serialize)]
 pub struct User {
     pub id: u64,
     pub username: String,

@@ -78,3 +78,9 @@ pub struct DataDisplay {
     pub id: String,
     pub value: String
 }
+
+#[derive(Deserialize)]
+pub struct UserData {
+    pub username: String,
+    pub password: String
+}

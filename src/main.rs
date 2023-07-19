@@ -1,14 +1,18 @@
 use axum::{
     http::StatusCode,
     routing::{get, post},
+    extract::State,
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
 use tower_http::cors::{Any, CorsLayer};
+use std::time::Duration;
 use http::Method;
 mod datastruct;
 use datastruct::*;
+use sqlx::postgres::{PgPool, PgPoolOptions};
 use compound_duration::format_dhms;
+use uuid::Uuid;
 
 const URL:&str = "https://maps.googleapis.com/maps/api/directions/json";
 const EMBED_URL:&str = "https://www.google.com/maps/embed/v1/directions";
@@ -17,6 +21,17 @@ const KEY:&str =  "AIzaSyAIf-vJKm6y4vhqsCFdMkuRYIOjb8Q8rxM";
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
+
+    let db_connection_str = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgresql://admin:xxmaster@localhost/bingo_fuel".to_string());
+
+    // setup connection pool
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .acquire_timeout(Duration::from_secs(3))
+        .connect(&db_connection_str)
+        .await
+        .expect("can't connect to database");
 
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST])
@@ -27,6 +42,7 @@ async fn main() {
         .route("/", get(root))
         .route("/users", post(create_user))
         .route("/api/route", post(route))
+        .route("/api/checkUser", post(get_user)).with_state(pool)
         .layer(cors);
 
     axum::Server::bind(&"0.0.0.0:3100".parse().unwrap())
@@ -64,6 +80,23 @@ async fn route(Json(payload): Json<Waypoints>,) -> (StatusCode, Json<DataRespons
     let mut user_data:DataResponse = calc_data(&route_data);
     user_data.embed_url = embed_url;
     (StatusCode::CREATED, Json(user_data))
+}
+
+#[derive(sqlx::FromRow, Serialize)]
+struct UserSQL {
+    userid: Uuid, 
+    username: String,
+    password: String
+}
+async fn get_user(State(pool): State<PgPool>, Json(payload): Json<UserData>,) -> (StatusCode, Json<UserSQL>) {
+
+    let data = sqlx::query_as::<_, UserSQL>("SELECT * FROM user_tbl WHERE username = $1 LIMIT 50")
+        .bind(payload.username)
+        .fetch_one(&pool)
+        .await
+        .map_err(internal_error);
+     //tracing::debug!("{}", data.unwrap().username );
+    (StatusCode::OK, Json(data.unwrap()))
 }
 
 fn url_generator(payload: &Waypoints, selector:bool) -> String {
@@ -119,8 +152,8 @@ fn calc_data(data:&GoogleResponse) -> DataResponse {
     response.data.push(DataDisplay {id: String::from("Time"), value: format_dhms(total_time)});
     response.data.push(DataDisplay {id: String::from("Distance (Km)"), value: round(total_dist_km, 2).to_string()});
     response.data.push(DataDisplay {id: String::from("Cost"), value: round(cost, 2).to_string()});
-    response.data.push(DataDisplay {id: String::from("Fuel Amount (Litre)"), value: round(fuel_amt, 2).to_string()});
-    response.data.push(DataDisplay {id: String::from("Amount of Stops"), value: stop_amt.to_string()});
+    response.data.push(DataDisplay {id: String::from("Fuel Amount"), value: round(fuel_amt, 2).to_string()});
+    response.data.push(DataDisplay {id: String::from("Amt Stops"), value: stop_amt.to_string()});
 
     response
 }
@@ -134,4 +167,11 @@ fn round(x: f64, decimals: u32) -> f64 {
 fn round_test() {
     let res = round(555.678f64, 2);
     assert_eq!(res, 555.68);
+}
+
+fn internal_error<E>(err: E) -> (StatusCode, String)
+where
+    E: std::error::Error,
+{
+    (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
 }

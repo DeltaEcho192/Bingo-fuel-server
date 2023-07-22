@@ -13,10 +13,20 @@ use datastruct::*;
 use sqlx::postgres::{PgPool, PgPoolOptions};
 use compound_duration::format_dhms;
 use uuid::Uuid;
+use jwt_simple::prelude::*;
+
+#[macro_use]
+extern crate lazy_static;
+
+lazy_static!{
+        static ref HASHKEY: HS256Key = HS256Key::generate();
+}
 
 const URL:&str = "https://maps.googleapis.com/maps/api/directions/json";
 const EMBED_URL:&str = "https://www.google.com/maps/embed/v1/directions";
 const KEY:&str =  "AIzaSyAIf-vJKm6y4vhqsCFdMkuRYIOjb8Q8rxM";
+
+
 
 #[tokio::main]
 async fn main() {
@@ -86,17 +96,47 @@ async fn route(Json(payload): Json<Waypoints>,) -> (StatusCode, Json<DataRespons
 struct UserSQL {
     userid: Uuid, 
     username: String,
-    password: String
+    password: String,
 }
-async fn get_user(State(pool): State<PgPool>, Json(payload): Json<UserData>,) -> (StatusCode, Json<UserSQL>) {
+
+#[derive(Serialize)]
+struct UserLogin {
+    valid: u32,
+    jwt: String,
+}
+
+async fn get_user(State(pool): State<PgPool>, Json(payload): Json<UserData>,) -> (StatusCode, Json<UserLogin>) {
+
+
+    let claims = Claims::create(jwt_simple::prelude::Duration::from_hours(2));
+    let token = HASHKEY.authenticate(claims).unwrap();
 
     let data = sqlx::query_as::<_, UserSQL>("SELECT * FROM user_tbl WHERE username = $1 LIMIT 50")
         .bind(payload.username)
         .fetch_one(&pool)
         .await
         .map_err(internal_error);
+
+    let data_res = match data {
+        Ok(user_data) => {
+            let check = UserLogin {
+                valid: 200,
+                jwt: token.to_string()
+            };
+            check
+        }
+        Err(error) => {
+            let check = UserLogin {
+                valid: 500,
+                jwt: token.to_string()
+            };
+            check
+        }
+    };
+
+    (StatusCode::OK, Json(data_res))
      //tracing::debug!("{}", data.unwrap().username );
-    (StatusCode::OK, Json(data.unwrap()))
+
 }
 
 fn url_generator(payload: &Waypoints, selector:bool) -> String {
